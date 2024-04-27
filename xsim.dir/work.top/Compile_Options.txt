@@ -1,0 +1,1 @@
+"work.top" -L "uvm" -timescale "1ns/1ps" -sv_lib "dpi" -cc_type "sbct" --debug "all" 
