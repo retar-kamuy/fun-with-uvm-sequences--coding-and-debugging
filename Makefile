@@ -45,7 +45,7 @@ XCRG_FLAGS		+= -report_format html
 ###############################################################################
 # Rules
 ###############################################################################
-all: clean build test cover
+all: clean test cover
 
 build: xsim.dir/work.$(TOP)
 

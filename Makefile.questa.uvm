@@ -1,0 +1,46 @@
+###############################################################################
+# Environments
+###############################################################################
+MTI_HOME		 = $(shell echo $$MTI_HOME)
+UVM_SRC			 = $(UVM_HOME)/src
+
+###############################################################################
+# User Settings
+###############################################################################
+WORKDIR	 = uvm
+
+SRCS	 = $(UVM_SRC)/dpi/uvm_dpi.cc
+
+V_SRCS	 = $(UVM_SRC)/uvm.sv
+
+INCDIR	 = $(MTI_HOME)/include
+
+TARGET	 = $(addprefix lib/,$(notdir $(SRCS:.cc=.so)))
+
+
+###############################################################################
+# Questa Simulator Settings
+###############################################################################
+CFLAGS			 = -m64 -fPIC -DQUESTA -g -W -shared
+CFLAGS			+= $(addprefix -I,$(INCDIR))
+
+VLOG_FLAGS		 = -sv -ccflags
+VLOG_FLAGS		+= -DQUESTA
+VLOG_FLAGS		+= $(addprefix +incdir+,$(UVM_SRC))
+
+###############################################################################
+# Rules
+###############################################################################
+build: $(WORKDIR) $(TARGET)
+
+$(WORKDIR): $(SRCS) $(V_SRCS)
+	vlib uvm
+	vmap uvm $@
+	vlog -work $@ $(VLOG_FLAGS) $^
+
+$(TARGET): $(SRCS)
+	@mkdir $(@D)
+	g++ $(CFLAGS) $^ -o $@
+
+clean:
+	@rm -rf $(WORKDIR) lib

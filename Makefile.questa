@@ -1,0 +1,76 @@
+###############################################################################
+# Environments
+###############################################################################
+MTI_HOME		 = $(shell echo $$MTI_HOME)
+UVM_SRC			 = $(UVM_HOME)/src
+QUESTA_UVM_HOME	 = $(MTI_HOME)/verilog_src/questa_uvm_pkg-1.2
+
+###############################################################################
+# User Settings
+###############################################################################
+WORKDIR	 = work
+
+UVM_WORKDIR	 = uvm
+
+SRCS	 = src/c_code_add.c
+
+OBJDIR	 = obj
+
+OBJS	 = $(addprefix $(OBJDIR)/,$(notdir $(SRCS:.c=.o)))
+
+V_SRCS	 = ./verif/tb/top.sv
+
+INCDIR	 = $(MTI_HOME)/include .
+
+LIBDIR	 = lib
+
+LIBS	 = cexports.so
+
+TOP		 = top
+
+TARGET	 = $(addprefix $(LIBDIR)/,$(notdir $(SRCS:.cc=.so)))
+
+UVM_TESTNAME	 = test
+
+###############################################################################
+# Questa Simulator Settings
+###############################################################################
+CFLAGS			 = -m64 -c -fPIC
+CFLAGS			+= $(addprefix -I,$(INCDIR))
+
+VLOG_FLAGS		 = -sv
+VLOG_FLAGS		+= $(addprefix -L ,$(UVM_WORKDIR))
+VLOG_FLAGS		+= $(addprefix +incdir+,$(UVM_SRC))
+
+VSIM_FLAGS		 = -64
+VSIM_FLAGS		+= -classdebug -msgmode both -uvmcontrol=all
+VSIM_FLAGS		+= -voptargs="+acc"
+VSIM_FLAGS		+= -do "add wave -r /*; run -all; quit -f"
+
+
+###############################################################################
+# Rules
+###############################################################################
+dpiheader.h: $(V_SRCS) $(QUESTA_UVM_HOME)/src/questa_uvm_pkg.sv
+	vlib work
+	vmap work $(WORKDIR)
+	vlog -dpiheader $@ $(VLOG_FLAGS) $^
+
+$(LIBDIR)/cexports.so: dpiheader.h
+	vsim -64 $(WORKDIR).$(TOP) -dpiexportobj $(LIBDIR)/cexports -c
+
+$(OBJS): $(SRCS)
+	g++ $(CFLAGS) $(LIBS) $^ -o $@
+
+$(LIBDIR)/c_code_add.so: $(OBJS)
+	g++ -m64 -shared -Bsymbolic $^ -o $@
+
+vsim.wlf: lib/uvm_dpi.so lib/c_code_add.so
+	vsim -c $(WORKDIR).$(TOP) $(addprefix -sv_lib ,$(basename $^)) +UVM_TESTNAME=$(UVM_TESTNAME) -wlf $@
+
+gui: vsim.wlf
+	vsim -64 -view $<
+
+clean:
+	@rm -rf $(WORKDIR) $(LIBDIR) $(OBJDIR) $(UVM_WORKDIR)
+	@rm -f transcript tr_db.log modelsim.ini dpiheader.h
